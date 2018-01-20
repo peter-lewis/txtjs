@@ -26,6 +26,7 @@ module txt {
         renderCycle:boolean = true;
 
         //accessibility
+        accessibilityEnabled:boolean = true;
         accessibilityText:string = null;
         accessibilityPriority:number = 2;
         accessibilityId:number = null;
@@ -65,7 +66,9 @@ module txt {
         layout(){
 
             //accessibility api
-            txt.Accessibility.set( this );
+            if( this.accessibilityEnabled ) {
+                txt.Accessibility.set( this );
+            }
 
             this.text = this.text.replace( /([\n][ \t]+)/g , '\n' );
             this.words = [];

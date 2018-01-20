@@ -87,6 +87,7 @@ declare module txt {
         block: createjs.Container;
         missingGlyphs: any[];
         renderCycle: boolean;
+        accessibilityEnabled: boolean;
         accessibilityText: string;
         accessibilityPriority: number;
         accessibilityId: number;
@@ -273,6 +274,7 @@ declare module txt {
         renderCycle: boolean;
         measured: boolean;
         oversetPotential: boolean;
+        accessibilityEnabled: boolean;
         accessibilityText: string;
         accessibilityPriority: number;
         accessibilityId: number;
@@ -337,6 +339,7 @@ declare module txt {
         initialOffset: number;
         measured: boolean;
         oversetPotential: boolean;
+        accessibilityEnabled: boolean;
         accessibilityText: string;
         accessibilityPriority: number;
         accessibilityId: number;

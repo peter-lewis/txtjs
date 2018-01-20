@@ -315,7 +315,7 @@
 
             <h2 class="content-subhead" id="accessibility">Accessibility</h2>
             <p>
-            By default the txt.Accessibility API is on. The API adds DOM text elements as canvas children that matching the .text property used. The API allows you to further enhance the text written within the canvas element by controlling content in '.accessibilityText' and element order in '.accessibilityPriority'.
+            By default the txt.Accessibility API is on. The API adds DOM text elements as canvas children that matching the .text property used. The API allows you to further enhance the text written within the canvas element by controlling content in '.accessibilityText' and element order in '.accessibilityPriority'. If you would like to disable this feature, please set '.accessibilityEnabled' to false.
             </p>
 
 
@@ -419,7 +419,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         stage = new createjs.Stage(canvas);
         
         var text = new txt.Text( { 
-            text:'Written to <canvas> with txtjs. Welcome.\nv0.9.5',
+            text:'Written to <canvas> with txtjs. Welcome.\nv0.9.6',
             font:'raleway',
             align:txt.Align.MIDDLE_CENTER,
             tracking:-5,
@@ -429,7 +429,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             size:100,
             x:0,
             y:0,
-            accessibilityText:'Written to canvas with txtjs. Welcome. v0.9.4'
+            accessibilityText:'Written to canvas with txtjs. Welcome. v0.9.6',
+            accessibilityEnabled:true
         } );
         
         stage.addChild( text );
