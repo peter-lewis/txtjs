@@ -99,6 +99,7 @@ declare module txt {
         characterLayout(): boolean;
         wordLayout(): void;
         lineLayout(): void;
+        removeTrailingSpaces(word: any): void;
     }
 }
 declare module txt {

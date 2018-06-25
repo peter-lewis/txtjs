@@ -70,21 +70,32 @@ module txt {
                 txt.Accessibility.set( this );
             }
 
+            // Standardize line breaks
             this.text = this.text.replace( /([\n][ \t]+)/g , '\n' );
+
+            // Trim spaces off which is at the end of a line
+            if (this.text.length > 0 && this.text.indexOf('\n') > -1) {
+                var lines = this.text.split('\n');
+                for (let iLine = 0; iLine < lines.length; iLine++) {
+                    lines[iLine] = lines[iLine].replace(/\s*$/, "");
+                }
+                this.text = lines.join('\n');
+            }
+
             this.words = [];
             this.lines = [];
             this.missingGlyphs = null;
-            // TODO - remove composite layout 
+            // TODO - remove composite layout
             this.removeAllChildren();
 
             this.block = new createjs.Container()
             this.addChild( this.block );
-            
+
             //debug
-            //draw baseline, ascent, ascender, descender lines 
+            //draw baseline, ascent, ascender, descender lines
             if( this.debug == true ){
                 var font:txt.Font = txt.FontLoader.getFont( this.font );
-            
+
                 //outline
                 var s = new createjs.Shape();
                 s.graphics.beginStroke( "#FF0000" );
@@ -120,9 +131,9 @@ module txt {
                 s.x = 0;
                 s.y = -font.descent / font.units * this.size;
                 this.block.addChild( s );
-            
+
             }
-            
+
             if( this.text === "" || this.text === undefined ){
                 this.render();
                 this.complete();
@@ -139,10 +150,10 @@ module txt {
                 this.complete();
                 return;
             }
-            
+
             this.wordLayout();
             this.lineLayout();
-            
+
             this.render();
             this.complete();
         }
@@ -177,7 +188,7 @@ module txt {
             // loop over characters
             // place into words
             for( var i = 0; i < len; i++ ){
-                
+
                 if( this.style !== null && this.style[ i ] !== undefined ){
                     currentStyle = this.style[ i ];
                     // make sure style contains properties needed.
@@ -194,7 +205,7 @@ module txt {
                 // mark word as having newline
                 // create new word
                 // new line has no character
-                if( this.text.charAt( i ) == "\n" ){
+                if( this.text.charAt( i ) == "\n"){
 
                     //only if not last char
                     if( i < len - 1 ){
@@ -209,7 +220,7 @@ module txt {
                         vPosition = 0;
                         hPosition = 0;
                     }
-                    
+
                     continue;
                 }
 
@@ -221,7 +232,7 @@ module txt {
 
                 // create character
                 char = new Character( this.text.charAt( i ) , currentStyle , i );
-                
+
                 if( this.original.character ){
                     if( this.original.character.added ){
                         char.on( 'added' , this.original.character.added );
@@ -260,7 +271,7 @@ module txt {
                         char.on( 'tick' , this.original.character.tick );
                     }
                 }
-                
+
                 if( char.missing ){
                     if( this.missingGlyphs == null ){
                         this.missingGlyphs = [];
@@ -300,18 +311,25 @@ module txt {
                         }
                     }
                 }
-                
+
                 char.x = hPosition;
-                
+
                 // push character into word
                 currentWord.addChild( char );
 
-                
+
+                // There is a bug where a space at the end of a line causes a mismeasurement of the character data.
+                // This fix prevents that situation.
+                var spaceThenLinebreakScenario = false;
+                if(i + 1 <= len && this.text.charAt( i ) == " " && this.text.charAt( i + 1 ) == "\n"){
+                    spaceThenLinebreakScenario = true;
+                }
+
                 // space
                 // mark word as having space
                 // create new word
                 // space character
-                if( this.text.charAt( i ) == " " ){
+                if( this.text.charAt( i ) == " " && !spaceThenLinebreakScenario){
 
                     currentWord.hasSpace = true;
                     currentWord.spaceOffset = ( char._glyph.offset * char.size );
@@ -359,9 +377,11 @@ module txt {
             this.lines.push( currentLine );
 
             currentLine.y = 0;
-            
+
             var currentWord:Word;
             var lastHeight:number;
+            var amountToRemove:number = 0;
+            var foundPreviousWord = false;
 
             this.block.addChild( currentLine );
             var hPosition = 0;
@@ -373,7 +393,7 @@ module txt {
             for( var i = 0; i < len; i++ ){
                 currentWord = this.words[ i ];
                 currentWord.x = hPosition;
-                
+
                 if( this.original.word ){
                     if( this.original.word.added ){
                         currentWord.on( 'added' , this.original.word.added );
@@ -431,7 +451,23 @@ module txt {
 
                     currentLine.measuredWidth = hPosition;
                     lastLineWord = this.words[i - 1];
-                    
+                    this.removeTrailingSpaces(lastLineWord);
+                    amountToRemove = 0;
+                    foundPreviousWord = false;
+                    for (var iWordsInLine = currentLine.children.length - 1; iWordsInLine > -1; iWordsInLine--) {
+                        var wordToCheck:Word = <Word>currentLine.children[iWordsInLine];
+                        // Remove single space words
+                        if(wordToCheck.children.length == 1 && wordToCheck.hasSpace){
+                            amountToRemove += wordToCheck.spaceOffset;
+                        } else {
+                            foundPreviousWord = true;
+                            break;
+                        }
+                    }
+                    if (foundPreviousWord) {
+                        currentLine.measuredWidth -= amountToRemove;
+                    }
+
                     if( lastLineWord != undefined && lastLineWord.hasSpace ){
                         currentLine.measuredWidth -= lastLineWord.spaceOffset;
                     }
@@ -440,8 +476,8 @@ module txt {
                     }else{
                         currentLine.measuredHeight = vPosition;
                     }
-                    
-                    
+
+
                     firstLine = false;
                     currentLine = new txt.Line();
                     this.lines.push( currentLine );
@@ -458,7 +494,7 @@ module txt {
                         currentLine.measuredHeight = swapWord.measuredHeight;
                     }
                     currentLine.measuredWidth = swapWord.measuredWidth;
-                    
+
                     //add new line
                     currentLine = new txt.Line();
                     this.lines.push( currentLine );
@@ -484,6 +520,23 @@ module txt {
                     }
                     currentLine.measuredWidth = hPosition;
                     lastLineWord = this.words[ i - 1 ];
+                    this.removeTrailingSpaces(lastLineWord);
+                    amountToRemove = 0;
+                    foundPreviousWord = false;
+                    for (var iWordsInLine = currentLine.children.length - 1; iWordsInLine > -1; iWordsInLine--) {
+                        var wordToCheck:Word = <Word>currentLine.children[iWordsInLine];
+                        // Remove single space words
+                        if (wordToCheck.children.length == 1 && wordToCheck.hasSpace) {
+                            amountToRemove += wordToCheck.spaceOffset;
+                        } else {
+                            foundPreviousWord = true;
+                            break;
+                        }
+                    }
+                    if (foundPreviousWord) {
+                        currentLine.measuredWidth -= amountToRemove;
+                    }
+
                     if( lastLineWord != undefined && lastLineWord.hasSpace ){
                         currentLine.measuredWidth -= lastLineWord.spaceOffset;
                     }
@@ -492,8 +545,8 @@ module txt {
                     }else{
                         currentLine.measuredHeight = vPosition;
                     }
-                    
-                    
+
+
                     firstLine = false;
                     currentLine = new txt.Line();
                     this.lines.push( currentLine );
@@ -519,7 +572,23 @@ module txt {
                     }else{
                         currentLine.measuredHeight = vPosition;
                     }
-                    currentLine.addChild( this.words[ i ] );
+                    this.removeTrailingSpaces(currentWord);
+                    amountToRemove = 0;
+                    foundPreviousWord = false;
+                    for (var iWordsInLine = currentLine.children.length - 1; iWordsInLine > -1; iWordsInLine--) {
+                        var wordToCheck:Word = <Word>currentLine.children[iWordsInLine];
+                        // Remove single space words
+                        if (wordToCheck.children.length == 1 && wordToCheck.hasSpace) {
+                            amountToRemove += wordToCheck.spaceOffset;
+                        } else {
+                            foundPreviousWord = true;
+                            break;
+                        }
+                    }
+                    if(foundPreviousWord){
+                        currentLine.measuredWidth -= amountToRemove;
+                    }
+                    currentLine.addChild( currentWord );
 
                     firstLine = false;
                     currentLine = new txt.Line();
@@ -529,9 +598,9 @@ module txt {
                         vPosition = 0;
                     }
                     hPosition = 0;
-                    
+
                     this.block.addChild( currentLine );
-                    
+
                     continue;
                 }
 
@@ -549,7 +618,7 @@ module txt {
             currentLine.measuredHeight = vPosition;
 
         }
-        
+
         lineLayout(){
             // loop over lines
             // place into text
@@ -568,7 +637,7 @@ module txt {
             for( var i = 0; i < len; i++ ){
 
                 line = this.lines[ i ];
-                
+
                 if( this.original.line ){
                     if( this.original.line.added ){
                         line.on( 'added' , this.original.line.added );
@@ -634,7 +703,7 @@ module txt {
                     line.x = ( this.width - line.measuredWidth );
                 }
             }
-            
+
             //TOP ALIGNED
             if( this.align === a.TOP_LEFT || this.align === a.TOP_CENTER || this.align === a.TOP_RIGHT  ){
                 this.block.y = this.lines[ 0 ].measuredHeight * fnt.ascent / fnt.units + this.lines[ 0 ].measuredHeight * fnt.top / fnt.units;
@@ -642,13 +711,13 @@ module txt {
             //MIDDLE ALIGNED
             }else if( this.align === a.MIDDLE_LEFT || this.align === a.MIDDLE_CENTER || this.align === a.MIDDLE_RIGHT  ){
                 this.block.y = this.lines[ 0 ].measuredHeight + ( this.height - measuredHeight ) / 2 + this.lines[ 0 ].measuredHeight * fnt.middle / fnt.units ;
-            
+
             //BOTTOM ALIGNED
             }else if( this.align === a.BOTTOM_LEFT || this.align === a.BOTTOM_CENTER || this.align === a.BOTTOM_RIGHT  ){
                this.block.y = this.height - this.lines[ this.lines.length - 1 ].y + this.lines[ 0 ].measuredHeight* fnt.bottom / fnt.units;
             }
-            
-            
+
+
             if( this.original.block ){
                 if( this.original.block.added ){
                     this.block.on( 'added' , this.original.block.added );
@@ -688,6 +757,24 @@ module txt {
                 }
             }
 
+        }
+
+        removeTrailingSpaces(word){
+            // Only do this if this is an actual word and not a single space word
+            if(word.children.length <= 1){
+                return;
+            }
+
+            // Loop thru and remove empty characters
+            for (var iCharacter = word.children.length - 1; iCharacter > -1; iCharacter--) {
+                var char = word.children[iCharacter];
+                if(char.character == ' '){
+                    word.measuredWidth = word.measuredWidth - word.spaceOffset; //( char._glyph.offset * char.size );
+                    //word.children.pop();
+                } else {
+                    break;
+                }
+            }
         }
 
     }

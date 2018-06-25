@@ -119,6 +119,13 @@ var txt;
                 txt.Accessibility.set(this);
             }
             this.text = this.text.replace(/([\n][ \t]+)/g, '\n');
+            if (this.text.length > 0 && this.text.indexOf('\n') > -1) {
+                var lines = this.text.split('\n');
+                for (var iLine = 0; iLine < lines.length; iLine++) {
+                    lines[iLine] = lines[iLine].replace(/\s*$/, "");
+                }
+                this.text = lines.join('\n');
+            }
             this.words = [];
             this.lines = [];
             this.missingGlyphs = null;
@@ -303,7 +310,11 @@ var txt;
                 }
                 char.x = hPosition;
                 currentWord.addChild(char);
-                if (this.text.charAt(i) == " ") {
+                var spaceThenLinebreakScenario = false;
+                if (i + 1 <= len && this.text.charAt(i) == " " && this.text.charAt(i + 1) == "\n") {
+                    spaceThenLinebreakScenario = true;
+                }
+                if (this.text.charAt(i) == " " && !spaceThenLinebreakScenario) {
                     currentWord.hasSpace = true;
                     currentWord.spaceOffset = (char._glyph.offset * char.size);
                     hPosition = char.x + (char._glyph.offset * char.size) + char.characterCaseOffset + char.trackingOffset() + char._glyph.getKerning(this.text.charCodeAt(i + 1), char.size);
@@ -337,6 +348,8 @@ var txt;
             currentLine.y = 0;
             var currentWord;
             var lastHeight;
+            var amountToRemove = 0;
+            var foundPreviousWord = false;
             this.block.addChild(currentLine);
             var hPosition = 0;
             var vPosition = 0;
@@ -401,6 +414,22 @@ var txt;
                     }
                     currentLine.measuredWidth = hPosition;
                     lastLineWord = this.words[i - 1];
+                    this.removeTrailingSpaces(lastLineWord);
+                    amountToRemove = 0;
+                    foundPreviousWord = false;
+                    for (var iWordsInLine = currentLine.children.length - 1; iWordsInLine > -1; iWordsInLine--) {
+                        var wordToCheck = currentLine.children[iWordsInLine];
+                        if (wordToCheck.children.length == 1 && wordToCheck.hasSpace) {
+                            amountToRemove += wordToCheck.spaceOffset;
+                        }
+                        else {
+                            foundPreviousWord = true;
+                            break;
+                        }
+                    }
+                    if (foundPreviousWord) {
+                        currentLine.measuredWidth -= amountToRemove;
+                    }
                     if (lastLineWord != undefined && lastLineWord.hasSpace) {
                         currentLine.measuredWidth -= lastLineWord.spaceOffset;
                     }
@@ -449,6 +478,22 @@ var txt;
                     }
                     currentLine.measuredWidth = hPosition;
                     lastLineWord = this.words[i - 1];
+                    this.removeTrailingSpaces(lastLineWord);
+                    amountToRemove = 0;
+                    foundPreviousWord = false;
+                    for (var iWordsInLine = currentLine.children.length - 1; iWordsInLine > -1; iWordsInLine--) {
+                        var wordToCheck = currentLine.children[iWordsInLine];
+                        if (wordToCheck.children.length == 1 && wordToCheck.hasSpace) {
+                            amountToRemove += wordToCheck.spaceOffset;
+                        }
+                        else {
+                            foundPreviousWord = true;
+                            break;
+                        }
+                    }
+                    if (foundPreviousWord) {
+                        currentLine.measuredWidth -= amountToRemove;
+                    }
                     if (lastLineWord != undefined && lastLineWord.hasSpace) {
                         currentLine.measuredWidth -= lastLineWord.spaceOffset;
                     }
@@ -483,7 +528,23 @@ var txt;
                     else {
                         currentLine.measuredHeight = vPosition;
                     }
-                    currentLine.addChild(this.words[i]);
+                    this.removeTrailingSpaces(currentWord);
+                    amountToRemove = 0;
+                    foundPreviousWord = false;
+                    for (var iWordsInLine = currentLine.children.length - 1; iWordsInLine > -1; iWordsInLine--) {
+                        var wordToCheck = currentLine.children[iWordsInLine];
+                        if (wordToCheck.children.length == 1 && wordToCheck.hasSpace) {
+                            amountToRemove += wordToCheck.spaceOffset;
+                        }
+                        else {
+                            foundPreviousWord = true;
+                            break;
+                        }
+                    }
+                    if (foundPreviousWord) {
+                        currentLine.measuredWidth -= amountToRemove;
+                    }
+                    currentLine.addChild(currentWord);
                     firstLine = false;
                     currentLine = new txt.Line();
                     this.lines.push(currentLine);
@@ -625,6 +686,20 @@ var txt;
                 }
                 if (this.original.block.tick) {
                     this.block.on('tick', this.original.block.tick);
+                }
+            }
+        };
+        Text.prototype.removeTrailingSpaces = function (word) {
+            if (word.children.length <= 1) {
+                return;
+            }
+            for (var iCharacter = word.children.length - 1; iCharacter > -1; iCharacter--) {
+                var char = word.children[iCharacter];
+                if (char.character == ' ') {
+                    word.measuredWidth = word.measuredWidth - word.spaceOffset;
+                }
+                else {
+                    break;
                 }
             }
         };
